@@ -1,32 +1,31 @@
-// lib/steps/work_experience_step.dart
+// lib/steps/organisational_step.dart
 import 'package:flutter/material.dart';
 import '../models/cv_models.dart';
 
-class WorkExperienceStep extends StatefulWidget {
-  final List<Experience> workList;
-  final VoidCallback
-  onListChanged; // Untuk memicu rebuild PDF di main_workspace
+class OrganisationalStep extends StatefulWidget {
+  final List<Organisation> orgList;
+  final VoidCallback onListChanged;
 
-  const WorkExperienceStep({
+  const OrganisationalStep({
     super.key,
-    required this.workList,
+    required this.orgList,
     required this.onListChanged,
   });
 
   @override
-  State<WorkExperienceStep> createState() => _WorkExperienceStepState();
+  State<OrganisationalStep> createState() => _OrganisationalStepState();
 }
 
-class _WorkExperienceStepState extends State<WorkExperienceStep> {
-  String? _expandedId; // Menyimpan ID experience mana yang sedang dibuka/diedit
+class _OrganisationalStepState extends State<OrganisationalStep> {
+  String? _expandedId;
 
-  void _addNewExperience() {
-    final newItem = Experience(
+  void _addNewOrganisation() {
+    final newItem = Organisation(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
     );
     setState(() {
-      widget.workList.add(newItem);
-      _expandedId = newItem.id; // Langsung buka form saat ditambahkan
+      widget.orgList.add(newItem);
+      _expandedId = newItem.id;
     });
     widget.onListChanged();
   }
@@ -37,32 +36,32 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Work Experiences',
+          'Organisational Experience',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         Text(
-          'Start with your most recent (newest) experiences.',
+          'Include relevant clubs, committees, or volunteer work.',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
 
-        // List Experience (Bisa di Drag & Drop)
+        // List Organisation (Drag & Drop)
         Expanded(
-          child: widget.workList.isEmpty
-              ? const Center(child: Text('No experience added yet.'))
+          child: widget.orgList.isEmpty
+              ? const Center(child: Text('No organisation added yet.'))
               : ReorderableListView.builder(
-                  itemCount: widget.workList.length,
+                  itemCount: widget.orgList.length,
                   onReorderItem: (oldIndex, newIndex) {
                     setState(() {
                       if (newIndex > oldIndex) newIndex -= 1;
-                      final item = widget.workList.removeAt(oldIndex);
-                      widget.workList.insert(newIndex, item);
+                      final item = widget.orgList.removeAt(oldIndex);
+                      widget.orgList.insert(newIndex, item);
                     });
                     widget.onListChanged();
                   },
                   itemBuilder: (context, index) {
-                    final item = widget.workList[index];
+                    final item = widget.orgList[index];
                     final isExpanded = _expandedId == item.id;
 
                     return Card(
@@ -83,17 +82,17 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
 
         const SizedBox(height: 16),
 
-        // Tombol Add Experience (Dashed/Outline)
+        // Tombol Add Organisation
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: _addNewExperience,
+            onPressed: _addNewOrganisation,
             icon: const Icon(
               Icons.add_circle_outline,
               color: Color(0xFF2563EB),
             ),
             label: const Text(
-              'Add experience',
+              'Add Org Experience',
               style: TextStyle(color: Color(0xFF2563EB)),
             ),
             style: OutlinedButton.styleFrom(
@@ -112,14 +111,13 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
     );
   }
 
-  // --- UI saat form sedang ditutup (Collapsed) ---
-  Widget _buildCollapsedSummary(Experience item) {
+  Widget _buildCollapsedSummary(Organisation item) {
     return ListTile(
       leading: const Icon(Icons.drag_indicator, color: Colors.grey),
       title: Text(
-        item.role.isEmpty && item.company.isEmpty
-            ? 'New Experience'
-            : '${item.role} in ${item.company}',
+        item.role.isEmpty && item.name.isEmpty
+            ? 'New Organisation'
+            : '${item.role} in ${item.name}',
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
       ),
       trailing: Row(
@@ -128,7 +126,7 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
             onPressed: () {
-              setState(() => widget.workList.remove(item));
+              setState(() => widget.orgList.remove(item));
               widget.onListChanged();
             },
           ),
@@ -143,9 +141,7 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
     );
   }
 
-  // --- UI saat form sedang terbuka (Expanded) ---
-  Widget _buildExpandedForm(Experience item) {
-    // Dropdown list dummy
+  Widget _buildExpandedForm(Organisation item) {
     final months = [
       'January',
       'February',
@@ -170,7 +166,6 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Header Expand & Control
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -185,7 +180,7 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
                     ),
                     onPressed: () {
                       setState(() {
-                        widget.workList.remove(item);
+                        widget.orgList.remove(item);
                         _expandedId = null;
                       });
                       widget.onListChanged();
@@ -197,7 +192,7 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
                       color: Colors.grey,
                     ),
                     onPressed: () {
-                      setState(() => _expandedId = null); // Tutup form
+                      setState(() => _expandedId = null);
                     },
                   ),
                 ],
@@ -206,27 +201,25 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
           ),
           const SizedBox(height: 8),
 
-          // Company Name
           TextFormField(
-            initialValue: item.company,
+            initialValue: item.name,
             decoration: const InputDecoration(
-              labelText: 'Company Name',
-              hintText: 'Enter company name, e.g. Google',
+              labelText: 'Organisation Name',
+              hintText: 'e.g. BEM UMN',
               border: OutlineInputBorder(),
             ),
             onChanged: (val) {
-              item.company = val;
+              item.name = val;
               widget.onListChanged();
             },
           ),
           const SizedBox(height: 12),
 
-          // Role Title
           TextFormField(
             initialValue: item.role,
             decoration: const InputDecoration(
-              labelText: 'Job/Internship/Role Title',
-              hintText: 'Enter role title, e.g. Manager',
+              labelText: 'Role / Position',
+              hintText: 'e.g. Head of Documentation',
               border: OutlineInputBorder(),
             ),
             onChanged: (val) {
@@ -236,37 +229,6 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
           ),
           const SizedBox(height: 12),
 
-          // Location
-          TextFormField(
-            initialValue: item.location,
-            decoration: const InputDecoration(
-              labelText: 'Company Location (City, Country)',
-              hintText: 'Enter location',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (val) {
-              item.location = val;
-              widget.onListChanged();
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Description (Optional)
-          TextFormField(
-            initialValue: item.companyDescription,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Company Description (Optional)',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (val) {
-              item.companyDescription = val;
-              widget.onListChanged();
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Dates
           Row(
             children: [
               Expanded(
@@ -355,9 +317,8 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
             const SizedBox(height: 12),
           ],
 
-          // Currently Working Checkbox
           CheckboxListTile(
-            title: const Text('I am currently working here'),
+            title: const Text('I am currently active here'),
             value: item.isCurrent,
             controlAffinity: ListTileControlAffinity.leading,
             contentPadding: EdgeInsets.zero,
@@ -368,18 +329,17 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
           ),
           const SizedBox(height: 8),
 
-          // Achievements
           TextFormField(
-            initialValue: item.achievements,
-            maxLines: 4,
+            initialValue: item.description,
+            maxLines: 3,
             decoration: const InputDecoration(
-              labelText: 'Work Portfolio and Achievements',
+              labelText: 'Activity / Task Description',
               hintText:
-                  'Use ";" for bullet points (e.g. Led a mentoring cohort; Handled client issues)',
+                  'e.g. Managed documentation team; Handled media relations',
               border: OutlineInputBorder(),
             ),
             onChanged: (val) {
-              item.achievements = val;
+              item.description = val;
               widget.onListChanged();
             },
           ),

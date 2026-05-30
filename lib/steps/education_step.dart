@@ -1,32 +1,31 @@
-// lib/steps/work_experience_step.dart
+// lib/steps/education_step.dart
 import 'package:flutter/material.dart';
 import '../models/cv_models.dart';
 
-class WorkExperienceStep extends StatefulWidget {
-  final List<Experience> workList;
-  final VoidCallback
-  onListChanged; // Untuk memicu rebuild PDF di main_workspace
+class EducationStep extends StatefulWidget {
+  final List<Education> educationList;
+  final VoidCallback onListChanged;
 
-  const WorkExperienceStep({
+  const EducationStep({
     super.key,
-    required this.workList,
+    required this.educationList,
     required this.onListChanged,
   });
 
   @override
-  State<WorkExperienceStep> createState() => _WorkExperienceStepState();
+  State<EducationStep> createState() => _EducationStepState();
 }
 
-class _WorkExperienceStepState extends State<WorkExperienceStep> {
-  String? _expandedId; // Menyimpan ID experience mana yang sedang dibuka/diedit
+class _EducationStepState extends State<EducationStep> {
+  String? _expandedId;
 
-  void _addNewExperience() {
-    final newItem = Experience(
+  void _addNewEducation() {
+    final newItem = Education(
       id: DateTime.now().millisecondsSinceEpoch.toString(),
     );
     setState(() {
-      widget.workList.add(newItem);
-      _expandedId = newItem.id; // Langsung buka form saat ditambahkan
+      widget.educationList.add(newItem);
+      _expandedId = newItem.id;
     });
     widget.onListChanged();
   }
@@ -37,32 +36,33 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Work Experiences',
+          'Education History',
           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 4),
         Text(
-          'Start with your most recent (newest) experiences.',
+          'Start with your highest degree or most recent education.',
           style: TextStyle(fontSize: 12, color: Colors.grey[600]),
         ),
         const SizedBox(height: 16),
 
-        // List Experience (Bisa di Drag & Drop)
+        // List Education (Bisa di Drag & Drop)
         Expanded(
-          child: widget.workList.isEmpty
-              ? const Center(child: Text('No experience added yet.'))
+          child: widget.educationList.isEmpty
+              ? const Center(child: Text('No Education added yet.'))
               : ReorderableListView.builder(
-                  itemCount: widget.workList.length,
+                  itemCount: widget.educationList.length,
                   onReorderItem: (oldIndex, newIndex) {
+                    // Pakai onReorder (standar Flutter)
                     setState(() {
                       if (newIndex > oldIndex) newIndex -= 1;
-                      final item = widget.workList.removeAt(oldIndex);
-                      widget.workList.insert(newIndex, item);
+                      final item = widget.educationList.removeAt(oldIndex);
+                      widget.educationList.insert(newIndex, item);
                     });
                     widget.onListChanged();
                   },
                   itemBuilder: (context, index) {
-                    final item = widget.workList[index];
+                    final item = widget.educationList[index];
                     final isExpanded = _expandedId == item.id;
 
                     return Card(
@@ -83,17 +83,17 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
 
         const SizedBox(height: 16),
 
-        // Tombol Add Experience (Dashed/Outline)
+        // Tombol Add Education
         SizedBox(
           width: double.infinity,
           child: OutlinedButton.icon(
-            onPressed: _addNewExperience,
+            onPressed: _addNewEducation,
             icon: const Icon(
               Icons.add_circle_outline,
               color: Color(0xFF2563EB),
             ),
             label: const Text(
-              'Add experience',
+              'Add Education',
               style: TextStyle(color: Color(0xFF2563EB)),
             ),
             style: OutlinedButton.styleFrom(
@@ -113,13 +113,13 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
   }
 
   // --- UI saat form sedang ditutup (Collapsed) ---
-  Widget _buildCollapsedSummary(Experience item) {
+  Widget _buildCollapsedSummary(Education item) {
     return ListTile(
       leading: const Icon(Icons.drag_indicator, color: Colors.grey),
       title: Text(
-        item.role.isEmpty && item.company.isEmpty
-            ? 'New Experience'
-            : '${item.role} in ${item.company}',
+        item.degree.isEmpty && item.school.isEmpty
+            ? 'New Education'
+            : '${item.degree} at ${item.school}',
         style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
       ),
       trailing: Row(
@@ -128,7 +128,7 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
           IconButton(
             icon: const Icon(Icons.delete_outline, color: Colors.red, size: 20),
             onPressed: () {
-              setState(() => widget.workList.remove(item));
+              setState(() => widget.educationList.remove(item));
               widget.onListChanged();
             },
           ),
@@ -144,25 +144,11 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
   }
 
   // --- UI saat form sedang terbuka (Expanded) ---
-  Widget _buildExpandedForm(Experience item) {
-    // Dropdown list dummy
-    final months = [
-      'January',
-      'February',
-      'March',
-      'April',
-      'May',
-      'June',
-      'July',
-      'August',
-      'September',
-      'October',
-      'November',
-      'December',
-    ];
+  Widget _buildExpandedForm(Education item) {
+    // Generate tahun dari masa depan (+5 tahun) untuk Expected Graduation
     final years = List.generate(
       30,
-      (index) => (DateTime.now().year - index).toString(),
+      (index) => (DateTime.now().year - index + 5).toString(),
     );
 
     return Padding(
@@ -185,7 +171,7 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
                     ),
                     onPressed: () {
                       setState(() {
-                        widget.workList.remove(item);
+                        widget.educationList.remove(item);
                         _expandedId = null;
                       });
                       widget.onListChanged();
@@ -197,7 +183,7 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
                       color: Colors.grey,
                     ),
                     onPressed: () {
-                      setState(() => _expandedId = null); // Tutup form
+                      setState(() => _expandedId = null);
                     },
                   ),
                 ],
@@ -206,93 +192,44 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
           ),
           const SizedBox(height: 8),
 
-          // Company Name
+          // University Name
           TextFormField(
-            initialValue: item.company,
+            initialValue: item.school,
             decoration: const InputDecoration(
-              labelText: 'Company Name',
-              hintText: 'Enter company name, e.g. Google',
+              labelText: 'University / School Name',
+              hintText: 'e.g. Universitas Multimedia Nusantara',
               border: OutlineInputBorder(),
             ),
             onChanged: (val) {
-              item.company = val;
+              item.school = val;
               widget.onListChanged();
             },
           ),
           const SizedBox(height: 12),
 
-          // Role Title
+          // Degree
           TextFormField(
-            initialValue: item.role,
+            initialValue: item.degree,
             decoration: const InputDecoration(
-              labelText: 'Job/Internship/Role Title',
-              hintText: 'Enter role title, e.g. Manager',
+              labelText: 'Degree / Major',
+              hintText: 'e.g. Bachelor of Informatics',
               border: OutlineInputBorder(),
             ),
             onChanged: (val) {
-              item.role = val;
+              item.degree = val;
               widget.onListChanged();
             },
           ),
           const SizedBox(height: 12),
 
-          // Location
-          TextFormField(
-            initialValue: item.location,
-            decoration: const InputDecoration(
-              labelText: 'Company Location (City, Country)',
-              hintText: 'Enter location',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (val) {
-              item.location = val;
-              widget.onListChanged();
-            },
-          ),
-          const SizedBox(height: 12),
-
-          // Description (Optional)
-          TextFormField(
-            initialValue: item.companyDescription,
-            maxLines: 2,
-            decoration: const InputDecoration(
-              labelText: 'Company Description (Optional)',
-              border: OutlineInputBorder(),
-            ),
-            onChanged: (val) {
-              item.companyDescription = val;
-              widget.onListChanged();
-            },
-          ),
-          const SizedBox(height: 16),
-
-          // Dates
+          // Dates (Only Years for Education)
           Row(
             children: [
               Expanded(
                 child: DropdownButtonFormField<String>(
-                  initialValue: months.contains(item.startMonth)
-                      ? item.startMonth
-                      : months.first,
-                  decoration: const InputDecoration(
-                    labelText: 'Start Month',
-                    border: OutlineInputBorder(),
-                  ),
-                  items: months
-                      .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                      .toList(),
-                  onChanged: (val) {
-                    setState(() => item.startMonth = val!);
-                    widget.onListChanged();
-                  },
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: DropdownButtonFormField<String>(
                   initialValue: years.contains(item.startYear)
                       ? item.startYear
-                      : years.first,
+                      : '2021',
                   decoration: const InputDecoration(
                     labelText: 'Start Year',
                     border: OutlineInputBorder(),
@@ -306,39 +243,13 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
                   },
                 ),
               ),
-            ],
-          ),
-          const SizedBox(height: 12),
-
-          if (!item.isCurrent) ...[
-            Row(
-              children: [
+              const SizedBox(width: 8),
+              if (!item.isCurrent)
                 Expanded(
                   child: DropdownButtonFormField<String>(
-                    initialValue: months.contains(item.endMonth)
-                        ? item.endMonth
-                        : months.first,
+                    initialValue: years.contains(item.endYear) ? item.endYear : '2025',
                     decoration: const InputDecoration(
-                      labelText: 'End Month',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: months
-                        .map((m) => DropdownMenuItem(value: m, child: Text(m)))
-                        .toList(),
-                    onChanged: (val) {
-                      setState(() => item.endMonth = val!);
-                      widget.onListChanged();
-                    },
-                  ),
-                ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: DropdownButtonFormField<String>(
-                    initialValue: years.contains(item.endYear)
-                        ? item.endYear
-                        : years.first,
-                    decoration: const InputDecoration(
-                      labelText: 'End Year',
+                      labelText: 'End Year (or Expected)',
                       border: OutlineInputBorder(),
                     ),
                     items: years
@@ -350,14 +261,13 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
                     },
                   ),
                 ),
-              ],
-            ),
-            const SizedBox(height: 12),
-          ],
+            ],
+          ),
+          const SizedBox(height: 12),
 
-          // Currently Working Checkbox
+          // Currently Studying Checkbox
           CheckboxListTile(
-            title: const Text('I am currently working here'),
+            title: const Text('I currently study here'),
             value: item.isCurrent,
             controlAffinity: ListTileControlAffinity.leading,
             contentPadding: EdgeInsets.zero,
@@ -368,18 +278,18 @@ class _WorkExperienceStepState extends State<WorkExperienceStep> {
           ),
           const SizedBox(height: 8),
 
-          // Achievements
+          // Additional Info
           TextFormField(
-            initialValue: item.achievements,
-            maxLines: 4,
+            initialValue: item.description,
+            maxLines: 3,
             decoration: const InputDecoration(
-              labelText: 'Work Portfolio and Achievements',
+              labelText: 'Additional Info (GPA, Awards, etc.)',
               hintText:
-                  'Use ";" for bullet points (e.g. Led a mentoring cohort; Handled client issues)',
+                  'e.g. GPA: 3.90/4.00; Received Academic Excellence Award',
               border: OutlineInputBorder(),
             ),
             onChanged: (val) {
-              item.achievements = val;
+              item.description = val;
               widget.onListChanged();
             },
           ),
