@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-// import 'package:file_picker/file_picker.dart';
 
 class PersonalInfoStep extends StatelessWidget {
   final TextEditingController nameController;
@@ -35,6 +34,9 @@ class PersonalInfoStep extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // List default untuk dropdown kode negara
+    final List<String> countryCodes = ['+62', '+1', '+44', '+65', '+60'];
+
     return SingleChildScrollView(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -44,10 +46,11 @@ class PersonalInfoStep extends StatelessWidget {
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
+
+          // BARIS 1: Nama dan Telepon
           Row(
             children: [
               Expanded(
-                flex: 4,
                 child: TextField(
                   controller: nameController,
                   decoration: const InputDecoration(
@@ -58,39 +61,43 @@ class PersonalInfoStep extends StatelessWidget {
               ),
               const SizedBox(width: 12),
               Expanded(
-                flex: 2,
-                child: DropdownButtonFormField<String>(
-                  initialValue: countryCode,
-                  decoration: const InputDecoration(
-                    labelText: 'Code',
-                    border: OutlineInputBorder(),
-                  ),
-                  onChanged: onCountryCodeChanged,
-                  items: const [
-                    DropdownMenuItem(value: '+62', child: Text('🇮🇩 +62')),
-                    DropdownMenuItem(value: '+1', child: Text('🇺🇸 +1')),
-                    DropdownMenuItem(value: '+65', child: Text('🇸🇬 +65')),
-                    DropdownMenuItem(value: '+60', child: Text('🇲🇾 +60')),
-                    DropdownMenuItem(value: '+44', child: Text('🇬🇧 +44')),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    DropdownButton<String>(
+                      value: countryCode,
+                      items: countryCodes
+                          .map(
+                            (code) => DropdownMenuItem(
+                              value: code,
+                              child: Text(code),
+                            ),
+                          )
+                          .toList(),
+                      onChanged: onCountryCodeChanged,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: TextField(
+                        controller: phoneController,
+                        keyboardType: TextInputType.number,
+                        inputFormatters: [
+                          FilteringTextInputFormatter.digitsOnly,
+                        ],
+                        decoration: const InputDecoration(
+                          labelText: 'Phone Number',
+                          border: OutlineInputBorder(),
+                        ),
+                      ),
+                    ),
                   ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                flex: 4,
-                child: TextField(
-                  controller: phoneController,
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  decoration: const InputDecoration(
-                    labelText: 'Phone Number',
-                    border: OutlineInputBorder(),
-                  ),
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
+
+          // BARIS 2: Email dan Alamat
           Row(
             children: [
               Expanded(
@@ -115,13 +122,15 @@ class PersonalInfoStep extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 12),
+
+          // BARIS 3: LinkedIn dan GitHub
           Row(
             children: [
               Expanded(
                 child: TextField(
                   controller: linkedinController,
                   decoration: const InputDecoration(
-                    labelText: 'LinkedIn URL (e.g. linkedin.com/in/user)',
+                    labelText: 'LinkedIn URL Profile',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -131,7 +140,7 @@ class PersonalInfoStep extends StatelessWidget {
                 child: TextField(
                   controller: githubController,
                   decoration: const InputDecoration(
-                    labelText: 'Portfolio Link (e.g. portfolio.me/user)',
+                    labelText: 'GitHub / Portfolio Link',
                     border: OutlineInputBorder(),
                   ),
                 ),
@@ -139,32 +148,11 @@ class PersonalInfoStep extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 16),
-          // Karakter info counter interaktif di Summary
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Self Summary',
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              ValueListenableBuilder(
-                valueListenable: summaryController,
-                builder: (context, value, child) {
-                  final len = value.text.length;
-                  final isIdeal = len >= 100 && len <= 150;
-                  return Text(
-                    'Recommended: 100 to 150 chars ($len)',
-                    style: TextStyle(
-                      fontSize: 11,
-                      color: isIdeal
-                          ? Colors.green
-                          : (len > 150 ? Colors.red : Colors.grey),
-                      fontWeight: isIdeal ? FontWeight.bold : FontWeight.normal,
-                    ),
-                  );
-                },
-              ),
-            ],
+
+          // BARIS 4: Summary
+          const Text(
+            'Self Summary',
+            style: TextStyle(fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 8),
           TextField(
@@ -174,12 +162,13 @@ class PersonalInfoStep extends StatelessWidget {
             decoration: const InputDecoration(
               hintText: 'Describe yourself briefly...',
               border: OutlineInputBorder(),
-              counterText: '', // Hide default counter
             ),
           ),
           const SizedBox(height: 16),
           const Divider(),
           const SizedBox(height: 8),
+
+          // BARIS 5: Upload Foto
           Row(
             children: [
               GestureDetector(
@@ -187,31 +176,25 @@ class PersonalInfoStep extends StatelessWidget {
                 child: Container(
                   width: 120,
                   height: 120,
+                  clipBehavior: Clip.hardEdge,
                   decoration: BoxDecoration(
-                    border: Border.all(color: Colors.grey[300]!),
+                    border: Border.all(
+                      color: Colors.grey[300]!,
+                      style: BorderStyle.solid,
+                    ),
                     borderRadius: BorderRadius.circular(12),
-                    color: selectedPhotoBytes != null
-                        ? Colors.blue[50]
-                        : Colors.grey[50],
+                    color: Colors.grey[50],
                   ),
-                  child: Center(
-                    child: selectedPhotoBytes != null
-                        ? ClipRRect(
-                            borderRadius: BorderRadius.circular(12),
-                            child: Image.memory(
-                              selectedPhotoBytes!,
-                              fit: BoxFit.cover,
-                              width: 120,
-                              height: 120,
-                            ),
-                          )
-                        : const Column(
+                  child: selectedPhotoBytes != null
+                      ? Image.memory(selectedPhotoBytes!, fit: BoxFit.cover)
+                      : const Center(
+                          child: Column(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(Icons.add_a_photo, color: Colors.grey),
                               SizedBox(height: 4),
                               Text(
-                                'Upload Photo',
+                                'Add Photo',
                                 style: TextStyle(
                                   fontSize: 10,
                                   color: Colors.grey,
@@ -226,14 +209,13 @@ class PersonalInfoStep extends StatelessWidget {
                               ),
                             ],
                           ),
-                  ),
+                        ),
                 ),
               ),
               const SizedBox(width: 16),
               if (selectedPhotoBytes != null)
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.redAccent),
-                  tooltip: 'Hapus Foto',
                   onPressed: onDeletePhoto,
                 ),
             ],

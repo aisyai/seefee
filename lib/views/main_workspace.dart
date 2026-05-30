@@ -7,10 +7,13 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import '../models/cv_models.dart';
+import '../steps/personal_info_step.dart';
 import '../steps/work_experience_step.dart';
 import '../steps/education_step.dart';
 import '../steps/organisational_step.dart';
 import 'components/custom_stepper.dart';
+import 'dart:convert';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class MainWorkspace extends StatefulWidget {
   const MainWorkspace({super.key});
@@ -22,7 +25,6 @@ class MainWorkspace extends StatefulWidget {
 class _MainWorkspaceState extends State<MainWorkspace> {
   int _activeStep = 0; // 0 sampai 5 (Step 1-6)
   String _selectedCountryCode = '+62';
-  final List<String> _countryCodes = ['+62', '+1', '+44', '+65', '+60'];
   Uint8List? _profileImageBytes;
 
   // Step 1: Personal Info Controllers
@@ -30,10 +32,9 @@ class _MainWorkspaceState extends State<MainWorkspace> {
   final _phoneController = TextEditingController();
   final _emailController = TextEditingController();
   final _linkedinController = TextEditingController();
-  final _githubController = TextEditingController();
+  final _portfolioController = TextEditingController();
   final _addressController = TextEditingController();
   final _summaryController = TextEditingController();
-  final bool _useDummyPhoto = false;
 
   // Step 2-5: List Data (CRUD State)
   final List<Experience> _workList = [];
@@ -41,7 +42,11 @@ class _MainWorkspaceState extends State<MainWorkspace> {
   final List<Organisation> _orgList = [];
 
   // Step 5: Others (Skills & Achievements)
-  final _skillsController = TextEditingController();
+  List<String> _skillsList = []; // Simpan skill dalam bentuk list
+  final _skillInputController =
+      TextEditingController(); // Controller buat ngetik skill baru
+  final _languagesController =
+      TextEditingController(); // Controller baru khusus bahasa
   final _achievementsController = TextEditingController();
 
   Future<void> _pickImage() async {
@@ -67,26 +72,104 @@ class _MainWorkspaceState extends State<MainWorkspace> {
     }
   }
 
+// --- SISTEM AUTOSAVE DRAFT ---
+  Future<void> _saveDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    
+    // Kumpulkan semua data ke dalam format Map
+    final draftData = {
+      'name': _nameController.text,
+      'phone': _phoneController.text,
+      'email': _emailController.text,
+      'linkedin': _linkedinController.text,
+      'portfolio': _portfolioController.text,
+      'address': _addressController.text,
+      'summary': _summaryController.text,
+      'achievements': _achievementsController.text,
+      'countryCode': _selectedCountryCode,
+      'skillsList': _skillsList,
+      'languages': _languagesController.text,
+      // Ubah list class jadi List of JSON
+      'workList': _workList.map((e) => e.toJson()).toList(),
+      'educationList': _educationList.map((e) => e.toJson()).toList(),
+      'orgList': _orgList.map((e) => e.toJson()).toList(),
+    };
+
+    // Simpan dalam format JSON String
+    await prefs.setString('cv_active_draft', jsonEncode(draftData));
+  }
+
+  Future<void> _loadDraft() async {
+    final prefs = await SharedPreferences.getInstance();
+    final draftString = prefs.getString('cv_active_draft');
+
+    if (draftString != null) {
+      final draftData = jsonDecode(draftString);
+
+      setState(() {
+        _nameController.text = draftData['name'] ?? '';
+        _phoneController.text = draftData['phone'] ?? '';
+        _emailController.text = draftData['email'] ?? '';
+        _linkedinController.text = draftData['linkedin'] ?? '';
+        _portfolioController.text = draftData['portfolio'] ?? '';
+        _addressController.text = draftData['address'] ?? '';
+        _summaryController.text = draftData['summary'] ?? '';
+        _achievementsController.text = draftData['achievements'] ?? '';
+        _selectedCountryCode = draftData['countryCode'] ?? '+62';
+        _skillsList = List<String>.from(draftData['skillsList'] ?? []);
+        _languagesController.text = draftData['languages'] ?? '';
+
+        if (draftData['workList'] != null) {
+          _workList.clear();
+          _workList.addAll(
+            (draftData['workList'] as List)
+                .map((e) => Experience.fromJson(e))
+                .toList(),
+          );
+        }
+        if (draftData['educationList'] != null) {
+          _educationList.clear();
+          _educationList.addAll(
+            (draftData['educationList'] as List)
+                .map((e) => Education.fromJson(e))
+                .toList(),
+          );
+        }
+        if (draftData['orgList'] != null) {
+          _orgList.clear();
+          _orgList.addAll(
+            (draftData['orgList'] as List)
+                .map((e) => Organisation.fromJson(e))
+                .toList(),
+          );
+        }
+      });
+    }
+  }
+
   Timer? _debounce;
 
   void _onTextChanged() {
     if (_debounce?.isActive ?? false) _debounce!.cancel();
     _debounce = Timer(const Duration(milliseconds: 500), () {
       setState(() {});
+      _saveDraft();
     });
   }
 
   @override
   void initState() {
     super.initState();
+    _loadDraft();
+    _languagesController.addListener(_onTextChanged);
+
     _nameController.addListener(_onTextChanged);
     _phoneController.addListener(_onTextChanged);
     _emailController.addListener(_onTextChanged);
     _linkedinController.addListener(_onTextChanged);
-    _githubController.addListener(_onTextChanged);
+    _portfolioController.addListener(_onTextChanged);
     _addressController.addListener(_onTextChanged);
     _summaryController.addListener(_onTextChanged);
-    _skillsController.addListener(_onTextChanged);
     _achievementsController.addListener(_onTextChanged);
   }
 
@@ -97,11 +180,11 @@ class _MainWorkspaceState extends State<MainWorkspace> {
     _phoneController.dispose();
     _emailController.dispose();
     _linkedinController.dispose();
-    _githubController.dispose();
+    _portfolioController.dispose();
     _addressController.dispose();
     _summaryController.dispose();
-    _skillsController.dispose();
     _achievementsController.dispose();
+    _languagesController.addListener(_onTextChanged);
     super.dispose();
   }
 
@@ -154,19 +237,36 @@ class _MainWorkspaceState extends State<MainWorkspace> {
                     style: const pw.TextStyle(fontSize: 9),
                   ),
                   if (_linkedinController.text.isNotEmpty ||
-                      _githubController.text.isNotEmpty)
+                      _portfolioController.text.isNotEmpty)
                     pw.Padding(
                       padding: const pw.EdgeInsets.only(top: 2),
-                      child: pw.Text(
-                        [
-                          if (_linkedinController.text.isNotEmpty)
-                            _linkedinController.text,
-                          if (_githubController.text.isNotEmpty)
-                            'Portfolio: ${_githubController.text}',
-                        ].join(' | '),
-                        style: const pw.TextStyle(
-                          fontSize: 9,
-                          color: PdfColors.blue800,
+                      child: pw.RichText(
+                        text: pw.TextSpan(
+                          style: const pw.TextStyle(fontSize: 9), // Style dasar
+                          children: [
+                            if (_linkedinController.text.isNotEmpty)
+                              pw.TextSpan(
+                                text: _linkedinController.text,
+                                style: const pw.TextStyle(
+                                  color: PdfColors.blue800,
+                                ),
+                              ),
+
+                            if (_linkedinController.text.isNotEmpty &&
+                                _portfolioController.text.isNotEmpty)
+                              const pw.TextSpan(
+                                text: ' | ',
+                                style: pw.TextStyle(color: PdfColors.black),
+                              ),
+
+                            if (_portfolioController.text.isNotEmpty)
+                              pw.TextSpan(
+                                text: _portfolioController.text,
+                                style: const pw.TextStyle(
+                                  color: PdfColors.blue800,
+                                ),
+                              ),
+                          ],
                         ),
                       ),
                     ),
@@ -419,10 +519,12 @@ class _MainWorkspaceState extends State<MainWorkspace> {
             ],
 
             // SKILLS & ACHIEVEMENTS
-            if (_skillsController.text.isNotEmpty ||
+            if (_skillsList.isNotEmpty ||
+                _languagesController.text.isNotEmpty ||
                 _achievementsController.text.isNotEmpty) ...[
-              _buildSectionHeader('SKILLS, ACHIEVEMENTS & OTHER EXPERIENCE'),
-              if (_skillsController.text.isNotEmpty)
+              _buildSectionHeader('SKILLS, LANGUAGES & ACHIEVEMENTS'),
+
+              if (_skillsList.isNotEmpty)
                 pw.Padding(
                   padding: const pw.EdgeInsets.only(bottom: 4),
                   child: pw.RichText(
@@ -436,13 +538,36 @@ class _MainWorkspaceState extends State<MainWorkspace> {
                           ),
                         ),
                         pw.TextSpan(
-                          text: _skillsController.text,
-                          style: pw.TextStyle(fontSize: 9),
+                          text: _skillsList.join(', '),
+                          style: const pw.TextStyle(fontSize: 9),
                         ),
                       ],
                     ),
                   ),
                 ),
+
+              if (_languagesController.text.isNotEmpty)
+                pw.Padding(
+                  padding: const pw.EdgeInsets.only(bottom: 4),
+                  child: pw.RichText(
+                    text: pw.TextSpan(
+                      children: [
+                        pw.TextSpan(
+                          text: 'Languages: ',
+                          style: pw.TextStyle(
+                            fontWeight: pw.FontWeight.bold,
+                            fontSize: 9.5,
+                          ),
+                        ),
+                        pw.TextSpan(
+                          text: _languagesController.text,
+                          style: const pw.TextStyle(fontSize: 9),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+
               if (_achievementsController.text.isNotEmpty)
                 pw.RichText(
                   text: pw.TextSpan(
@@ -646,14 +771,35 @@ class _MainWorkspaceState extends State<MainWorkspace> {
   Widget _buildActiveStepForm() {
     switch (_activeStep) {
       case 0:
-        return _buildPersonalInfoForm();
+        return PersonalInfoStep(
+          nameController: _nameController,
+          phoneController: _phoneController,
+          emailController: _emailController,
+          addressController: _addressController,
+          linkedinController: _linkedinController,
+          githubController: _portfolioController,
+          summaryController: _summaryController,
+          countryCode: _selectedCountryCode,
+          selectedPhotoBytes: _profileImageBytes,
+          onCountryCodeChanged: (val) {
+            setState(() => _selectedCountryCode = val!);
+            _saveDraft();
+          },
+          onPickPhoto: () async {
+            await _pickImage();
+            _saveDraft();
+          },
+          onDeletePhoto: () {
+            setState(() => _profileImageBytes = null);
+            _saveDraft();
+          },
+        );
       case 1:
-        // Panggil widget yang sudah di-extract
         return WorkExperienceStep(
           workList: _workList,
           onListChanged: () {
-            // Memaksa PDF generator untuk memuat ulang data terbaru
             setState(() {});
+            _saveDraft();
           },
         );
       case 2:
@@ -661,6 +807,7 @@ class _MainWorkspaceState extends State<MainWorkspace> {
           educationList: _educationList,
           onListChanged: () {
             setState(() {});
+            _saveDraft();
           },
         );
       case 3:
@@ -668,10 +815,12 @@ class _MainWorkspaceState extends State<MainWorkspace> {
           orgList: _orgList,
           onListChanged: () {
             setState(() {});
+            _saveDraft();
           },
         );
       case 4:
         return _buildOthersForm();
+        
       case 5:
         return _buildReviewForm();
       default:
@@ -679,181 +828,181 @@ class _MainWorkspaceState extends State<MainWorkspace> {
     }
   }
 
-  Widget _buildPersonalInfoForm() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Personal Information',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _nameController,
-                  decoration: const InputDecoration(
-                    labelText: 'Full Name *',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    DropdownButton<String>(
-                      value: _selectedCountryCode,
-                      items: _countryCodes
-                          .map(
-                            (code) => DropdownMenuItem(
-                              value: code,
-                              child: Text(code),
-                            ),
-                          )
-                          .toList(),
-                      onChanged: (val) =>
-                          setState(() => _selectedCountryCode = val!),
-                    ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: _phoneController,
-                        keyboardType: TextInputType.number,
-                        inputFormatters: [
-                          FilteringTextInputFormatter.digitsOnly,
-                        ],
-                        decoration: const InputDecoration(
-                          labelText: 'Phone Number',
-                          border: OutlineInputBorder(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _emailController,
-                  decoration: const InputDecoration(
-                    labelText: 'Email Address',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _addressController,
-                  decoration: const InputDecoration(
-                    labelText: 'City, Country',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _linkedinController,
-                  decoration: const InputDecoration(
-                    labelText: 'LinkedIn URL Profile',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: TextField(
-                  controller: _githubController,
-                  decoration: const InputDecoration(
-                    labelText: 'GitHub / Portfolio Link',
-                    border: OutlineInputBorder(),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          const Text(
-            'Self Summary',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _summaryController,
-            maxLines: 4,
-            maxLength: 500,
-            decoration: const InputDecoration(
-              hintText: 'Describe yourself briefly...',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 16),
-          const Divider(),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              GestureDetector(
-                onTap: () async => await _pickImage(),
-                child: Container(
-                  width: 120,
-                  height: 120,
-                  clipBehavior: Clip.hardEdge,
-                  decoration: BoxDecoration(
-                    border: Border.all(
-                      color: Colors.grey[300]!,
-                      style: BorderStyle.solid,
-                    ),
-                    borderRadius: BorderRadius.circular(12),
-                    color: _useDummyPhoto ? Colors.teal[50] : Colors.grey[50],
-                  ),
-                  child: _profileImageBytes != null
-                      ? Image.memory(_profileImageBytes!, fit: BoxFit.cover)
-                      : Center(
-                          child: _useDummyPhoto
-                              ? const Icon(
-                                  Icons.account_circle,
-                                  size: 64,
-                                  color: Colors.teal,
-                                )
-                              : const Column(
-                                  mainAxisAlignment: MainAxisAlignment.center,
-                                  children: [
-                                    Icon(Icons.add_a_photo, color: Colors.grey),
-                                    SizedBox(height: 4),
-                                    Text(
-                                      'Add Photo',
-                                      style: TextStyle(
-                                        fontSize: 10,
-                                        color: Colors.grey,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                        ),
-                ),
-              ),
-              const SizedBox(
-                width: 16,
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildPersonalInfoForm() {
+  //   return SingleChildScrollView(
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         const Text(
+  //           'Personal Information',
+  //           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  //         ),
+  //         const SizedBox(height: 16),
+  //         Row(
+  //           children: [
+  //             Expanded(
+  //               child: TextField(
+  //                 controller: _nameController,
+  //                 decoration: const InputDecoration(
+  //                   labelText: 'Full Name *',
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //               ),
+  //             ),
+  //             const SizedBox(width: 12),
+  //             Expanded(
+  //               child: Row(
+  //                 crossAxisAlignment: CrossAxisAlignment.end,
+  //                 children: [
+  //                   DropdownButton<String>(
+  //                     value: _selectedCountryCode,
+  //                     items: _countryCodes
+  //                         .map(
+  //                           (code) => DropdownMenuItem(
+  //                             value: code,
+  //                             child: Text(code),
+  //                           ),
+  //                         )
+  //                         .toList(),
+  //                     onChanged: (val) =>
+  //                         setState(() => _selectedCountryCode = val!),
+  //                   ),
+  //                   const SizedBox(width: 8),
+  //                   Expanded(
+  //                     child: TextField(
+  //                       controller: _phoneController,
+  //                       keyboardType: TextInputType.number,
+  //                       inputFormatters: [
+  //                         FilteringTextInputFormatter.digitsOnly,
+  //                       ],
+  //                       decoration: const InputDecoration(
+  //                         labelText: 'Phone Number',
+  //                         border: OutlineInputBorder(),
+  //                       ),
+  //                     ),
+  //                   ),
+  //                 ],
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //         const SizedBox(height: 12),
+  //         Row(
+  //           children: [
+  //             Expanded(
+  //               child: TextField(
+  //                 controller: _emailController,
+  //                 decoration: const InputDecoration(
+  //                   labelText: 'Email Address',
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //               ),
+  //             ),
+  //             const SizedBox(width: 12),
+  //             Expanded(
+  //               child: TextField(
+  //                 controller: _addressController,
+  //                 decoration: const InputDecoration(
+  //                   labelText: 'City, Country',
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //         const SizedBox(height: 12),
+  //         Row(
+  //           children: [
+  //             Expanded(
+  //               child: TextField(
+  //                 controller: _linkedinController,
+  //                 decoration: const InputDecoration(
+  //                   labelText: 'LinkedIn URL Profile',
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //               ),
+  //             ),
+  //             const SizedBox(width: 12),
+  //             Expanded(
+  //               child: TextField(
+  //                 controller: _portfolioController,
+  //                 decoration: const InputDecoration(
+  //                   labelText: 'portfolio / Portfolio Link',
+  //                   border: OutlineInputBorder(),
+  //                 ),
+  //               ),
+  //             ),
+  //           ],
+  //         ),
+  //         const SizedBox(height: 16),
+  //         const Text(
+  //           'Self Summary',
+  //           style: TextStyle(fontWeight: FontWeight.bold),
+  //         ),
+  //         const SizedBox(height: 8),
+  //         TextField(
+  //           controller: _summaryController,
+  //           maxLines: 4,
+  //           maxLength: 500,
+  //           decoration: const InputDecoration(
+  //             hintText: 'Describe yourself briefly...',
+  //             border: OutlineInputBorder(),
+  //           ),
+  //         ),
+  //         const SizedBox(height: 16),
+  //         const Divider(),
+  //         const SizedBox(height: 8),
+  //         Row(
+  //           children: [
+  //             GestureDetector(
+  //               onTap: () async => await _pickImage(),
+  //               child: Container(
+  //                 width: 120,
+  //                 height: 120,
+  //                 clipBehavior: Clip.hardEdge,
+  //                 decoration: BoxDecoration(
+  //                   border: Border.all(
+  //                     color: Colors.grey[300]!,
+  //                     style: BorderStyle.solid,
+  //                   ),
+  //                   borderRadius: BorderRadius.circular(12),
+  //                   color: _useDummyPhoto ? Colors.teal[50] : Colors.grey[50],
+  //                 ),
+  //                 child: _profileImageBytes != null
+  //                     ? Image.memory(_profileImageBytes!, fit: BoxFit.cover)
+  //                     : Center(
+  //                         child: _useDummyPhoto
+  //                             ? const Icon(
+  //                                 Icons.account_circle,
+  //                                 size: 64,
+  //                                 color: Colors.teal,
+  //                               )
+  //                             : const Column(
+  //                                 mainAxisAlignment: MainAxisAlignment.center,
+  //                                 children: [
+  //                                   Icon(Icons.add_a_photo, color: Colors.grey),
+  //                                   SizedBox(height: 4),
+  //                                   Text(
+  //                                     'Add Photo',
+  //                                     style: TextStyle(
+  //                                       fontSize: 10,
+  //                                       color: Colors.grey,
+  //                                     ),
+  //                                   ),
+  //                                 ],
+  //                               ),
+  //                       ),
+  //               ),
+  //             ),
+  //             const SizedBox(
+  //               width: 16,
+  //             ),
+  //           ],
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildOthersForm() {
     return SingleChildScrollView(
@@ -861,39 +1010,89 @@ class _MainWorkspaceState extends State<MainWorkspace> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Skills & Achievements',
+            'Skills, Languages & Achievements',
             style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
           ),
           const SizedBox(height: 16),
+
+          // AREA SKILLS DENGAN CHIPS
+          const Text(
+            'Key Skills',
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+          const SizedBox(height: 8),
+          Wrap(
+            spacing: 8.0,
+            runSpacing: 4.0,
+            children: _skillsList.map((skill) {
+              return Chip(
+                label: Text(skill, style: const TextStyle(fontSize: 12)),
+                backgroundColor: Colors.blue[50],
+                deleteIcon: const Icon(Icons.close, size: 16),
+                onDeleted: () {
+                  setState(() => _skillsList.remove(skill));
+                  _saveDraft();
+                },
+              );
+            }).toList(),
+          ),
+          const SizedBox(height: 8),
           TextField(
-            controller: _skillsController,
-            maxLines: 3,
+            controller: _skillInputController,
+            decoration: InputDecoration(
+              hintText: 'Type a skill and press Enter (e.g. Flutter)',
+              border: const OutlineInputBorder(),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.add_circle, color: Colors.blue),
+                onPressed: () {
+                  if (_skillInputController.text.trim().isNotEmpty) {
+                    setState(() {
+                      _skillsList.add(_skillInputController.text.trim());
+                      _skillInputController.clear();
+                    });
+                    _saveDraft();
+                  }
+                },
+              ),
+            ),
+            onSubmitted: (val) {
+              if (val.trim().isNotEmpty) {
+                setState(() {
+                  _skillsList.add(val.trim());
+                  _skillInputController.clear();
+                });
+                _saveDraft();
+              }
+            },
+          ),
+          const SizedBox(height: 20),
+
+          // AREA BAHASA
+          TextField(
+            controller: _languagesController,
             decoration: const InputDecoration(
-              labelText: 'Key Skills',
-              hintText:
-                  'e.g. Flutter, Dart, REST API, Git, Teamwork, English (Fluent)',
+              labelText: 'Languages',
+              hintText: 'e.g. Indonesian (Native), English (Fluent)',
               border: OutlineInputBorder(),
-              helperText: 'Separate items with commas (,)',
             ),
           ),
           const SizedBox(height: 20),
+
+          // AREA ACHIEVEMENTS
           TextField(
             controller: _achievementsController,
             maxLines: 3,
             decoration: const InputDecoration(
-              labelText: 'Achievements / Languages / Others',
-              hintText:
-                  'e.g. 1st Place National Hackathon 2024, TOEFL Score 610, etc.',
+              labelText: 'Achievements / Awards',
+              hintText: 'e.g. 1st Place National Hackathon 2024...',
               border: OutlineInputBorder(),
-              helperText:
-                  'Separate items with commas (,) or write in simple sentences.',
             ),
           ),
         ],
       ),
     );
   }
-
+  
   Widget _buildReviewForm() {
     return Center(
       child: Column(
