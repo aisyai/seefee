@@ -11,6 +11,7 @@ import '../steps/personal_info_step.dart';
 import '../steps/work_experience_step.dart';
 import '../steps/education_step.dart';
 import '../steps/organisational_step.dart';
+import '../steps/others_step.dart';
 import 'components/custom_stepper.dart';
 import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -42,12 +43,9 @@ class _MainWorkspaceState extends State<MainWorkspace> {
   final List<Organisation> _orgList = [];
 
   // Step 5: Others (Skills & Achievements)
-  List<String> _skillsList = []; // Simpan skill dalam bentuk list
-  final _skillInputController =
-      TextEditingController(); // Controller buat ngetik skill baru
-  final _languagesController =
-      TextEditingController(); // Controller baru khusus bahasa
-  final _achievementsController = TextEditingController();
+  List<String> _skillsList = [];
+  final _languagesController = TextEditingController();
+  final List<Achievement> _achievementList = [];
 
   Future<void> _pickImage() async {
     FilePickerResult? result = await FilePicker.pickFiles(
@@ -85,11 +83,10 @@ class _MainWorkspaceState extends State<MainWorkspace> {
       'portfolio': _portfolioController.text,
       'address': _addressController.text,
       'summary': _summaryController.text,
-      'achievements': _achievementsController.text,
       'countryCode': _selectedCountryCode,
       'skillsList': _skillsList,
       'languages': _languagesController.text,
-      // Ubah list class jadi List of JSON
+      'achievementList': _achievementList.map((e) => e.toJson()).toList(),
       'workList': _workList.map((e) => e.toJson()).toList(),
       'educationList': _educationList.map((e) => e.toJson()).toList(),
       'orgList': _orgList.map((e) => e.toJson()).toList(),
@@ -114,10 +111,18 @@ class _MainWorkspaceState extends State<MainWorkspace> {
         _portfolioController.text = draftData['portfolio'] ?? '';
         _addressController.text = draftData['address'] ?? '';
         _summaryController.text = draftData['summary'] ?? '';
-        _achievementsController.text = draftData['achievements'] ?? '';
         _selectedCountryCode = draftData['countryCode'] ?? '+62';
         _skillsList = List<String>.from(draftData['skillsList'] ?? []);
         _languagesController.text = draftData['languages'] ?? '';
+        
+        if (draftData['achievementList'] != null) {
+          _achievementList.clear();
+          _achievementList.addAll(
+            (draftData['achievementList'] as List)
+                .map((e) => Achievement.fromJson(e))
+                .toList(),
+          );
+        }
 
         if (draftData['workList'] != null) {
           _workList.clear();
@@ -170,7 +175,6 @@ class _MainWorkspaceState extends State<MainWorkspace> {
     _portfolioController.addListener(_onTextChanged);
     _addressController.addListener(_onTextChanged);
     _summaryController.addListener(_onTextChanged);
-    _achievementsController.addListener(_onTextChanged);
   }
 
   @override
@@ -183,7 +187,6 @@ class _MainWorkspaceState extends State<MainWorkspace> {
     _portfolioController.dispose();
     _addressController.dispose();
     _summaryController.dispose();
-    _achievementsController.dispose();
     _languagesController.addListener(_onTextChanged);
     super.dispose();
   }
@@ -519,9 +522,10 @@ class _MainWorkspaceState extends State<MainWorkspace> {
             ],
 
             // SKILLS & ACHIEVEMENTS
+            // SKILLS, LANGUAGES & ACHIEVEMENTS SECTION
             if (_skillsList.isNotEmpty ||
                 _languagesController.text.isNotEmpty ||
-                _achievementsController.text.isNotEmpty) ...[
+                _achievementList.isNotEmpty) ...[
               _buildSectionHeader('SKILLS, LANGUAGES & ACHIEVEMENTS'),
 
               if (_skillsList.isNotEmpty)
@@ -568,24 +572,67 @@ class _MainWorkspaceState extends State<MainWorkspace> {
                   ),
                 ),
 
-              if (_achievementsController.text.isNotEmpty)
-                pw.RichText(
-                  text: pw.TextSpan(
-                    children: [
-                      pw.TextSpan(
-                        text: 'Achievements / Others: ',
-                        style: pw.TextStyle(
-                          fontWeight: pw.FontWeight.bold,
-                          fontSize: 9.5,
-                        ),
-                      ),
-                      pw.TextSpan(
-                        text: _achievementsController.text,
-                        style: pw.TextStyle(fontSize: 9),
-                      ),
-                    ],
+              if (_achievementList.isNotEmpty) ...[
+                pw.SizedBox(height: 4),
+                pw.Text(
+                  'Projects & Certificates:',
+                  style: pw.TextStyle(
+                    fontWeight: pw.FontWeight.bold,
+                    fontSize: 9.5,
                   ),
                 ),
+                ..._achievementList.map((ach) {
+                  return pw.Padding(
+                    padding: const pw.EdgeInsets.only(top: 4, left: 8),
+                    child: pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                        pw.Container(
+                          width: 3,
+                          height: 3,
+                          margin: const pw.EdgeInsets.only(top: 4, right: 6),
+                          decoration: const pw.BoxDecoration(
+                            shape: pw.BoxShape.circle,
+                            color: PdfColors.black,
+                          ),
+                        ),
+                        pw.Expanded(
+                          child: pw.RichText(
+                            text: pw.TextSpan(
+                              children: [
+                                pw.TextSpan(
+                                  text: '${ach.title} (${ach.year})',
+                                  style: pw.TextStyle(
+                                    fontWeight: pw.FontWeight.bold,
+                                    fontSize: 9,
+                                  ),
+                                ),
+                                if (ach.description.isNotEmpty)
+                                  pw.TextSpan(
+                                    text: ' - ${ach.description}',
+                                    style: const pw.TextStyle(fontSize: 9),
+                                  ),
+                                if (ach.link.isNotEmpty)
+                                  pw.TextSpan(
+                                    text:
+                                        ' [View]',
+                                    style: const pw.TextStyle(
+                                      fontSize: 9,
+                                      color: PdfColors.blue800,
+                                    ),
+                                    annotation: pw.AnnotationUrl(
+                                      ach.link,
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }),
+              ],
             ],
           ];
         },
@@ -819,7 +866,15 @@ class _MainWorkspaceState extends State<MainWorkspace> {
           },
         );
       case 4:
-        return _buildOthersForm();
+        return OthersStep(
+          skillsList: _skillsList,
+          languagesController: _languagesController,
+          achievementList: _achievementList,
+          onDataChanged: () {
+            setState(() {});
+            _saveDraft();
+          },
+        );
         
       case 5:
         return _buildReviewForm();
@@ -1004,94 +1059,91 @@ class _MainWorkspaceState extends State<MainWorkspace> {
   //   );
   // }
 
-  Widget _buildOthersForm() {
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text(
-            'Skills, Languages & Achievements',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 16),
-
-          // AREA SKILLS DENGAN CHIPS
-          const Text(
-            'Key Skills',
-            style: TextStyle(fontWeight: FontWeight.bold),
-          ),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8.0,
-            runSpacing: 4.0,
-            children: _skillsList.map((skill) {
-              return Chip(
-                label: Text(skill, style: const TextStyle(fontSize: 12)),
-                backgroundColor: Colors.blue[50],
-                deleteIcon: const Icon(Icons.close, size: 16),
-                onDeleted: () {
-                  setState(() => _skillsList.remove(skill));
-                  _saveDraft();
-                },
-              );
-            }).toList(),
-          ),
-          const SizedBox(height: 8),
-          TextField(
-            controller: _skillInputController,
-            decoration: InputDecoration(
-              hintText: 'Type a skill and press Enter (e.g. Flutter)',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.add_circle, color: Colors.blue),
-                onPressed: () {
-                  if (_skillInputController.text.trim().isNotEmpty) {
-                    setState(() {
-                      _skillsList.add(_skillInputController.text.trim());
-                      _skillInputController.clear();
-                    });
-                    _saveDraft();
-                  }
-                },
-              ),
-            ),
-            onSubmitted: (val) {
-              if (val.trim().isNotEmpty) {
-                setState(() {
-                  _skillsList.add(val.trim());
-                  _skillInputController.clear();
-                });
-                _saveDraft();
-              }
-            },
-          ),
-          const SizedBox(height: 20),
-
-          // AREA BAHASA
-          TextField(
-            controller: _languagesController,
-            decoration: const InputDecoration(
-              labelText: 'Languages',
-              hintText: 'e.g. Indonesian (Native), English (Fluent)',
-              border: OutlineInputBorder(),
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          // AREA ACHIEVEMENTS
-          TextField(
-            controller: _achievementsController,
-            maxLines: 3,
-            decoration: const InputDecoration(
-              labelText: 'Achievements / Awards',
-              hintText: 'e.g. 1st Place National Hackathon 2024...',
-              border: OutlineInputBorder(),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Widget _buildOthersForm() {
+  //   return SingleChildScrollView(
+  //     child: Column(
+  //       crossAxisAlignment: CrossAxisAlignment.start,
+  //       children: [
+  //         const Text(
+  //           'Skills, Languages & Achievements',
+  //           style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+  //         ),
+  //         const SizedBox(height: 16),
+  //         // AREA SKILLS DENGAN CHIPS
+  //         const Text(
+  //           'Key Skills',
+  //           style: TextStyle(fontWeight: FontWeight.bold),
+  //         ),
+  //         const SizedBox(height: 8),
+  //         Wrap(
+  //           spacing: 8.0,
+  //           runSpacing: 4.0,
+  //           children: _skillsList.map((skill) {
+  //             return Chip(
+  //               label: Text(skill, style: const TextStyle(fontSize: 12)),
+  //               backgroundColor: Colors.blue[50],
+  //               deleteIcon: const Icon(Icons.close, size: 16),
+  //               onDeleted: () {
+  //                 setState(() => _skillsList.remove(skill));
+  //                 _saveDraft();
+  //               },
+  //             );
+  //           }).toList(),
+  //         ),
+  //         const SizedBox(height: 8),
+  //         TextField(
+  //           controller: _skillInputController,
+  //           decoration: InputDecoration(
+  //             hintText: 'Type a skill and press Enter (e.g. Flutter)',
+  //             border: const OutlineInputBorder(),
+  //             suffixIcon: IconButton(
+  //               icon: const Icon(Icons.add_circle, color: Colors.blue),
+  //               onPressed: () {
+  //                 if (_skillInputController.text.trim().isNotEmpty) {
+  //                   setState(() {
+  //                     _skillsList.add(_skillInputController.text.trim());
+  //                     _skillInputController.clear();
+  //                   });
+  //                   _saveDraft();
+  //                 }
+  //               },
+  //             ),
+  //           ),
+  //           onSubmitted: (val) {
+  //             if (val.trim().isNotEmpty) {
+  //               setState(() {
+  //                 _skillsList.add(val.trim());
+  //                 _skillInputController.clear();
+  //               });
+  //               _saveDraft();
+  //             }
+  //           },
+  //         ),
+  //         const SizedBox(height: 20),
+  //         // AREA BAHASA
+  //         TextField(
+  //           controller: _languagesController,
+  //           decoration: const InputDecoration(
+  //             labelText: 'Languages',
+  //             hintText: 'e.g. Indonesian (Native), English (Fluent)',
+  //             border: OutlineInputBorder(),
+  //           ),
+  //         ),
+  //         const SizedBox(height: 20),
+  //         // AREA ACHIEVEMENTS
+  //         TextField(
+  //           controller: _achievementsController,
+  //           maxLines: 3,
+  //           decoration: const InputDecoration(
+  //             labelText: 'Achievements / Awards',
+  //             hintText: 'e.g. 1st Place National Hackathon 2024...',
+  //             border: OutlineInputBorder(),
+  //           ),
+  //         ),
+  //       ],
+  //     ),
+  //   );
+  // }
   
   Widget _buildReviewForm() {
     return Center(

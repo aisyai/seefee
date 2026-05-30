@@ -159,9 +159,16 @@ class PersonalInfoStep extends StatelessWidget {
             controller: summaryController,
             maxLines: 4,
             maxLength: 500,
+            inputFormatters: [
+              LengthLimitingTextInputFormatter( 
+                500,
+                maxLengthEnforcement: MaxLengthEnforcement.enforced,
+              ),
+            ],
             decoration: const InputDecoration(
               hintText: 'Describe yourself briefly...',
               border: OutlineInputBorder(),
+              counterText: '',
             ),
           ),
           const SizedBox(height: 16),

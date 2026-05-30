@@ -281,7 +281,7 @@ class _EducationStepState extends State<EducationStep> {
           // Additional Info
           TextFormField(
             initialValue: item.description,
-            maxLines: 3,
+            maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Additional Info (GPA, Awards, etc.)',
               hintText:

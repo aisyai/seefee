@@ -331,7 +331,7 @@ class _OrganisationalStepState extends State<OrganisationalStep> {
 
           TextFormField(
             initialValue: item.description,
-            maxLines: 3,
+            maxLines: 4,
             decoration: const InputDecoration(
               labelText: 'Activity / Task Description',
               hintText:

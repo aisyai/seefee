@@ -169,3 +169,35 @@ class Organisation {
     description: json['description'] ?? '',
   );
 }
+
+class Achievement {
+  String id;
+  String title;
+  String year;
+  String description;
+  String link;
+
+  Achievement({
+    required this.id,
+    this.title = '',
+    this.year = '2024',
+    this.description = '',
+    this.link = '',
+  });
+
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'title': title,
+    'year': year,
+    'description': description,
+    'link': link,
+  };
+
+  factory Achievement.fromJson(Map<String, dynamic> json) => Achievement(
+    id: json['id'],
+    title: json['title'] ?? '',
+    year: json['year'] ?? '2024',
+    description: json['description'] ?? '',
+    link: json['link'] ?? '',
+  );
+}
